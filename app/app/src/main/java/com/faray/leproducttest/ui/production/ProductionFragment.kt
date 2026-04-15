@@ -1,5 +1,8 @@
 package com.faray.leproducttest.ui.production
 
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -38,9 +41,16 @@ class ProductionFragment : Fragment() {
                 grantResults[permission] == true || hasPermission(permission)
             }
             if (allGranted) {
-                viewModel.startProduction()
+                startProductionWithBluetoothCheck()
             } else {
                 viewModel.onBlePermissionDenied()
+            }
+        }
+
+    private val enableBluetoothLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (isBluetoothEnabled()) {
+                viewModel.startProduction()
             }
         }
 
@@ -101,14 +111,26 @@ class ProductionFragment : Fragment() {
 
     private fun startProductionWithPermissions() {
         if (ProductionRepository.requiredPermissions.all(::hasPermission)) {
-            viewModel.startProduction()
+            startProductionWithBluetoothCheck()
             return
         }
         blePermissionLauncher.launch(ProductionRepository.requiredPermissions)
     }
 
+    private fun startProductionWithBluetoothCheck() {
+        if (!isBluetoothEnabled()) {
+            enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+            return
+        }
+        viewModel.startProduction()
+    }
+
     private fun hasPermission(permission: String): Boolean {
         return ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isBluetoothEnabled(): Boolean {
+        return requireContext().getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true
     }
 
     private fun emptyMessage(): String {
